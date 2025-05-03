@@ -24,7 +24,7 @@ public class DotenvBuilder {
      * @param path the directory containing the .env file
      * @return this {@link DotenvBuilder}
      */
-    public DotenvBuilder directory(String path) {
+    public DotenvBuilder directory(final String path) {
         this.directoryPath = path;
         return this;
     }
@@ -33,7 +33,7 @@ public class DotenvBuilder {
      * @param name the filename
      * @return this {@link DotenvBuilder}
      */
-    public DotenvBuilder filename(String name) {
+    public DotenvBuilder filename(final String name) {
         filename = name;
         return this;
     }
@@ -89,6 +89,7 @@ public class DotenvBuilder {
         if (systemProperties) {
             env.forEach(it -> System.setProperty(it.getKey(), it.getValue()));
         }
+
         return new DotenvImpl(env);
     }
 
@@ -96,19 +97,25 @@ public class DotenvBuilder {
         private final Map<String, String> envVars;
         private final Set<DotenvEntry> set;
         private final Set<DotenvEntry> setInFile;
-        private final Map<String, String> envVarsInFile;
-        public DotenvImpl(List<DotenvEntry> envVars) {
-            this.envVarsInFile = envVars.stream().collect(toMap(DotenvEntry::getKey, DotenvEntry::getValue));
-            this.envVars = new HashMap<>(this.envVarsInFile);
-            System.getenv().forEach(this.envVars::put);
+        public DotenvImpl(final List<DotenvEntry> envVars) {
+            final Map<String, String> envVarsInFile =
+                envVars.stream()
+                       .collect(toMap(DotenvEntry::getKey, DotenvEntry::getValue, (a, b) -> b));
 
-            this.set =this.envVars.entrySet().stream()
-                .map(it -> new DotenvEntry(it.getKey(), it.getValue()))
-                .collect(collectingAndThen(toSet(), Collections::unmodifiableSet));
+            this.envVars = new HashMap<>(envVarsInFile);
+            this.envVars.putAll(System.getenv());
 
-            this.setInFile =this.envVarsInFile.entrySet().stream()
-                .map(it -> new DotenvEntry(it.getKey(), it.getValue()))
-                .collect(collectingAndThen(toSet(), Collections::unmodifiableSet));
+            this.set =
+                this.envVars.entrySet()
+                            .stream()
+                            .map(it -> new DotenvEntry(it.getKey(), it.getValue()))
+                            .collect(collectingAndThen(toSet(), Collections::unmodifiableSet));
+
+            this.setInFile =
+                envVarsInFile.entrySet()
+                             .stream()
+                             .map(it -> new DotenvEntry(it.getKey(), it.getValue()))
+                             .collect(collectingAndThen(toSet(), Collections::unmodifiableSet));
         }
 
         @Override
@@ -117,21 +124,21 @@ public class DotenvBuilder {
         }
 
         @Override
-        public Set<DotenvEntry> entries(Dotenv.Filter filter) {
-            if (filter != null) return setInFile;
-            return entries();
+        public Set<DotenvEntry> entries(final Dotenv.Filter filter) {
+            return filter == null ? entries() : setInFile;
+
         }
 
         @Override
-        public String get(String key) {
-            String value = System.getenv(key);
-            return value != null ? value : envVars.get(key);
+        public String get(final String key) {
+            final String value = System.getenv(key);
+            return value == null ? envVars.get(key) : value;
         }
 
         @Override
         public String get(String key, String defaultValue) {
-            String value = this.get(key);
-            return value != null ? value : defaultValue;
+            final String value = this.get(key);
+            return value == null ? defaultValue : value;
         }
     }
 }

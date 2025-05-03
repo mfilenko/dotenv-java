@@ -42,19 +42,19 @@ public class DotenvReader {
 
         String location = dir + "/" + filename;
         String lowerLocation = location.toLowerCase();
-        Path path = lowerLocation.startsWith("file:") || lowerLocation.startsWith("android.resource:")
-            ? Paths.get(URI.create(location))
-            : Paths.get(location);
+        Path path = (
+            lowerLocation.startsWith("file:")
+                || lowerLocation.startsWith("android.resource:")
+                || lowerLocation.startsWith("jimfs:")
+        ) ? Paths.get(URI.create(location)) : Paths.get(location);
 
         if (Files.exists(path)) {
-            return Files
-                .lines(path)
-                .collect(Collectors.toList());
+            return Files.readAllLines(path);
         }
 
         try {
             return ClasspathHelper
-                .loadFileFromClasspath(location.replaceFirst("./", "/"))
+                .loadFileFromClasspath(location.replaceFirst("^\\./", "/"))
                 .collect(Collectors.toList());
         } catch (DotenvException e) {
             Path cwd = FileSystems.getDefault().getPath(".").toAbsolutePath().normalize();
